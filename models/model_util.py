@@ -23,12 +23,16 @@ class ModelUtil():
         self.model = model
         self.min_sup_points = model.min_sup_points
         self.inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
+        self.inv_inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
 
     def set_design_space(self, design_space):
         self.design_space = design_space
 
     def get_inf_mat(self):
         return self.inf_mat
+
+    def set_parameters(self, parameters):
+        self.args = parameters
 
     def get_inv_inf_mat(self):
         return self.inv_inf_mat

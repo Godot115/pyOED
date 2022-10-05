@@ -11,9 +11,6 @@ import time
 import numpy as np
 
 from cluster.dbscan_util import dbscan
-from models.model2 import Model2
-from models.model3 import Model3
-from models.model4 import Model4
 from models.model5 import Model5
 from models.model_util import ModelUtil
 
@@ -26,6 +23,23 @@ class AlgorithmUtil():
         self.grid_size = grid_size
         self.model_util = ModelUtil(model, self.design_space, po_ne, *args)
         self.min_sup_points = self.model_util.min_sup_points
+        self.design_points = []
+        self.criterion_val = 0
+
+    def set_model(self, model):
+        self.model = model
+        self.model_util.set_model(model)
+        self.min_sup_points = self.model_util.min_sup_points
+
+    def set_design_space(self, design_space):
+        self.design_space = design_space
+        self.model_util.set_design_space(design_space)
+
+    def set_grid_size(self, grid_size):
+        self.grid_size = grid_size
+
+    def set_parameters(self, *args):
+        self.model_util.set_parameters(*args)
 
     def mac(self):
         algorithm = 'MAC'
@@ -44,9 +58,6 @@ class AlgorithmUtil():
         det_fim = model_util.get_det_fim()
 
         iteration = 0
-        start = time.time()
-        time_recorder = []
-        det_fim_recorder = []
         threshold = 1e-6
         det_fim_gain = float('inf')
         while det_fim_gain / det_fim > threshold:
@@ -80,7 +91,6 @@ class AlgorithmUtil():
                 design_points.append([max_variance_point, alpha_s])
             elif alpha_s < 0:
                 for idx in range(len(design_points)):
-                    # design_points[idx][1] *= (1 - alpha_s)
                     if design_points[idx][0] == max_variance_point:
                         design_points[idx][1] += alpha_s
                         break
@@ -111,28 +121,10 @@ class AlgorithmUtil():
                         design_points[idx][1] *= variances[idx] / denominator
                     model_util.cal_inf_mat_w(design_points)
             det_fim_gain = model_util.get_det_fim() - det_fim
-
             det_fim = model_util.get_det_fim()
 
-            time_recorder.append(time.time() - start)
-            det_fim_recorder.append(det_fim)
-
-        # matplotlib.pyplot.scatter(time_recorder, det_fim_recorder)
-        # matplotlib.pyplot.show()
-        # print(max_variance)
-        # sql = "INSERT INTO iteration(algorithm, \
-        #        model, space_points_num, parameters,lowbound,highbound,det_record,time_record,iteration_times,computer) \
-        #        VALUES ('%s',  %s,  %s, '%s',%s,%s,'%s','%s',%s,'%s')" % \
-        #       (algorithm, model_name, grid, str(args), lo_bound, up_bound,
-        #        det_fim_recorder, time_recorder, iteration, COMPUTER_NAME)
-
-        # cursor.execute(sql)
-        # db.commit()
-        #
-        end = time.time()
-        # print("*********  modifiedFWA  *************")
-        print(det_fim, end - start)
-        return [det_fim, end - start]
+        self.design_points = design_points
+        self.criterion_val = det_fim
 
 
 if __name__ == '__main__':
@@ -141,6 +133,13 @@ if __name__ == '__main__':
     grid_size = 10000
     po_ne = "neg"
     args = (349.02687, 1067.04343, 0.76332, 2.60551)
-    au = AlgorithmUtil(model, [0.01, 2500.0], 1000,po_ne, *args)
-    start = time.time()
+    au = AlgorithmUtil(model, [0.01, 2500.0], 1000, po_ne, *args)
+    au.mac()
+    print(au.design_points)
+    # [[2500.0, 0.2499644988426227], [1285.287116935484, 0.24996449884262303], [710.6926411290322, 0.2499644988426224], [0.01, 0.24996449884262267], [1295.3677217741936, 0.00014200462950923057]]
+    print(au.criterion_val)
+    # 283.5403685634794
+    au.set_grid_size(10000)
+    au.set_design_space([0.01, 2000])
+    au.set_parameters((350.02687, 1067.04343, 0.76332, 2.60551))
     au.mac()
