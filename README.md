@@ -17,13 +17,11 @@ from models.model5 import Model5
 
 $$
 \begin{align*}
-        \begin{align*}
-        y=& \theta_1&(model 1)\\
-        y=& \theta_1e^{\frac {x}{\theta_2}}&(model 2)\\
-        y=& \theta_1e^{\pm(x/\theta_2)^{\theta_4}}&(model 3)\\
-        y=& \theta_1[\theta_3-(\theta_3-1)e^{(x/\theta_2)}]&(model 4)\\
-        y=& \theta_1[\theta_3-(\theta_3-1)e^{(x/\theta_2)^{\theta_4}}]&(model 5).
-        \end{align*}
+    y=& \theta_1&(model 1)\\
+    y=& \theta_1e^{\frac {x}{\theta_2}}&(model 2)\\
+    y=& \theta_1e^{\pm(x/\theta_2)^{\theta_4}}&(model 3)\\
+    y=& \theta_1[\theta_3-(\theta_3-1)e^{(x/\theta_2)}]&(model 4)\\
+    y=& \theta_1[\theta_3-(\theta_3-1)e^{(x/\theta_2)^{\theta_4}}]&(model 5).
 \end{align*}
 $$
 
