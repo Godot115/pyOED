@@ -16,11 +16,15 @@ from models.model5 import Model5
 ```
 
 $$
-y=& \theta_1&(model 1)\\
+\begin{align*}
+        \begin{align*}
+        y=& \theta_1&(model 1)\\
         y=& \theta_1e^{\frac {x}{\theta_2}}&(model 2)\\
-        y=& \theta_1e^{\pm(\frac{x}{\theta_2})^{\theta_4}}&(model 3)\\
-        y=& \theta_1[\theta_3-(\theta_3-1)e^{(\frac{x}{\theta_2})}]&(model 4)\\
-        y=& \theta_1[\theta_3-(\theta_3-1)e^{(\frac{x}{\theta_2})^{\theta_4}}]&(model 5).
+        y=& \theta_1e^{\pm(x/\theta_2)^{\theta_4}}&(model 3)\\
+        y=& \theta_1[\theta_3-(\theta_3-1)e^{(x/\theta_2)}]&(model 4)\\
+        y=& \theta_1[\theta_3-(\theta_3-1)e^{(x/\theta_2)^{\theta_4}}]&(model 5).
+        \end{align*}
+\end{align*}
 $$
 
 Constructing D-optimal design requires users input `design space`, `grid size` and  `initial parameters guesses`. `po_ne` denotes the plus or minus sign for model 3.
