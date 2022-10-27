@@ -13,42 +13,39 @@ import numpy as np
 
 
 class Model5():
-    def __init__(self):
+    def __init__(self, parameters):
         self.model_name = "model5"
         self.min_sup_points = 4
+        self.parameters = parameters
+        self.a = self.parameters[0]
+        self.b = self.parameters[1]
+        self.c = self.parameters[2]
+        self.d = self.parameters[3]
 
-    def par_a(self, x, *args):
-        a = args[0]
-        b = args[1]
-        c = args[2]
-        d = args[3]
+    def par_a(self, x):
+        c = self.c
 
         return c - (c - 1) * x
 
-    def par_b(self, x, *args):
-        a = args[0]
-        b = args[1]
-        c = args[2]
-        d = args[3]
+    def par_b(self, x):
+        a = self.a
+        b = self.b
+        c = self.c
+        d = self.d
 
         return a * d * (-log(x)) * (1 - c) * x / b
 
-    def par_c(self, x, *args):
-        a = args[0]
-        b = args[1]
-        c = args[2]
-        d = args[3]
-
+    def par_c(self, x):
+        a = self.a
         return a * (1 - x)
 
-    def par_d(self, x, *args):
-        a = args[0]
-        b = args[1]
-        c = args[2]
-        d = args[3]
+    def par_d(self, x):
+        a = self.a
+        c = self.c
+        d = self.d
         return -a * (-log(x)) * (1 - c) * x * log((-log(x)) ** (1 / d))
 
-    def par_deriv_vec(self, x, plus_minus_sign, *args):
+    def par_deriv_vec(self, x):
         """
         :param x: value of the design point
         :return: f(x,Theta).T
@@ -57,8 +54,8 @@ class Model5():
          ..................
          [∂η(x,Theta) / ∂θm]]
         """
-        x = exp(-(x / args[1]) ** args[3])
-        return np.array([[self.par_a(x, *args),
-                          self.par_b(x, *args),
-                          self.par_c(x, *args),
-                          self.par_d(x, *args)]]).T
+        x = exp(-(x[0] / self.b) ** self.d)
+        return np.array([[self.par_a(x),
+                          self.par_b(x),
+                          self.par_c(x),
+                          self.par_d(x)]]).T

@@ -9,15 +9,11 @@ import numpy as np
 
 class ModelUtil():
 
-    def __init__(self, model, design_space, po_ne, *args):
+    def __init__(self, model):
         self.model = model
-        self.design_space = design_space
         self.min_sup_points = model.min_sup_points
         self.inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
         self.inv_inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
-        self.po_ne = po_ne
-        self.args = args
-
 
     def set_model(self, model):
         self.model = model
@@ -25,14 +21,9 @@ class ModelUtil():
         self.inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
         self.inv_inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
 
-    def set_design_space(self, design_space):
-        self.design_space = design_space
 
     def get_inf_mat(self):
         return self.inf_mat
-
-    def set_parameters(self, parameters):
-        self.args = parameters
 
     def get_inv_inf_mat(self):
         return self.inv_inf_mat
@@ -40,42 +31,28 @@ class ModelUtil():
     def get_det_fim(self):
         return np.linalg.det(self.inf_mat)
 
-    def cal_inf_mat(self, designPoints):
+
+    def cal_inf_mat_w(self, design_points):
         """
         :param designPoints: design points
         :return: information matrix
         """
         self.inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
-        weights = [1 / len(designPoints) for i in range(len(designPoints))]
-        for i in range(len(designPoints)):
-            self.inf_mat += self.model.par_deriv_vec(designPoints[i], self.po_ne, *self.args) * \
-                            self.model.par_deriv_vec(designPoints[i], self.po_ne, *self.args).T * \
-                            weights[i]
-
-        self.inv_inf_mat = np.linalg.inv(self.inf_mat)
-        return np.array(self.inf_mat)
-
-    def cal_inf_mat_w(self, designPoints):
-        """
-        :param designPoints: design points
-        :return: information matrix
-        """
-        self.inf_mat = np.zeros((self.min_sup_points, self.min_sup_points))
-        for i in range(len(designPoints)):
-            self.inf_mat += self.model.par_deriv_vec(designPoints[i][0], self.po_ne, *self.args) * \
-                            self.model.par_deriv_vec(designPoints[i][0], self.po_ne, *self.args).T * \
-                            designPoints[i][1]
+        for i in range(len(design_points)):
+            self.inf_mat += self.model.par_deriv_vec(design_points[i][0]) * \
+                            self.model.par_deriv_vec(design_points[i][0]).T * \
+                            design_points[i][1]
         self.inv_inf_mat = np.linalg.inv(self.inf_mat)
         return np.array(self.inf_mat)
 
     def cal_variance(self, x):
-        left = np.matmul(self.model.par_deriv_vec(x, self.po_ne, *self.args).T, self.inv_inf_mat)
-        result = np.matmul(left, self.model.par_deriv_vec(x, self.po_ne, *self.args))
+        left = np.matmul(self.model.par_deriv_vec(x).T, self.inv_inf_mat)
+        result = np.matmul(left, self.model.par_deriv_vec(x))
         return result[0][0]
 
     def cal_combined_variance(self, x_i, x_j):
-        return np.matmul(np.matmul(self.model.par_deriv_vec(x_i, self.po_ne, *self.args).T, self.inv_inf_mat),
-                         self.model.par_deriv_vec(x_j, self.po_ne, *self.args).T)[0][0]
+        return np.matmul(np.matmul(self.model.par_deriv_vec(x_i).T, self.inv_inf_mat),
+                         self.model.par_deriv_vec(x_j))[0][0]
 
     def cal_delta(self, x_i, x_j):
         return self.cal_variance(x_j) - \
@@ -85,10 +62,9 @@ class ModelUtil():
                self.cal_variance(x_i)
 
     def cal_observ_mass(self, x):
-        return self.model.par_deriv_vec(x, self.po_ne, *self.args) * \
-               self.model.par_deriv_vec(x, self.po_ne, *self.args).T
+        return self.model.par_deriv_vec(x) * \
+               self.model.par_deriv_vec(x).T
 
     def fim_add_mass(self, mass, step):
         self.inf_mat = (1 - step) * self.inf_mat + step * mass
         self.inv_inf_mat = np.linalg.inv(self.inf_mat)
-        return self.inf_mat

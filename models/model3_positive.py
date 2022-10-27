@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
-# @Time    : 10/6/22 04:22
+# @Time    : 10/6/22 03:35
 # @Author  : godot
-# @FileName: model4.py
+# @FileName: model3_positive.py
 # @Project : MAC
 # @Software: PyCharm
-
-
-import math
+from math import log, exp
 
 import numpy as np
 
 
-class Model4():
+class Model3Positive():
     def __init__(self, parameters):
-        self.model_name = "model4"
+        self.model_name = "model3Positive"
         self.min_sup_points = 3
         self.parameters = parameters
         self.a = self.parameters[0]
@@ -22,18 +20,18 @@ class Model4():
         self.d = self.parameters[3]
 
     def par_a(self, x):
-        c = self.c
-        return c - (c - 1) * x
+        return x
 
     def par_b(self, x):
         a = self.a
         b = self.b
-        c = self.c
-        return a * x * math.log(x) * (c - 1) / b
+        d = self.d
+        return (-a * d * log(x) * x) / b
 
-    def par_c(self, x):
+    def par_d(self, x):
         a = self.a
-        return a - a * x
+        d = self.d
+        return a * log(x) * x * log(log(x) ** (-d))
 
     def par_deriv_vec(self, x):
         """
@@ -43,8 +41,9 @@ class Model4():
          [∂η(x,Theta) / ∂θ2],
          ..................
          [∂η(x,Theta) / ∂θm]]
+         [∂η(x,Theta) / ∂θm]]
         """
-        x = math.exp(-x[0] / self.b)
+        x = exp((x[0] / self.b) ** self.d)
         return np.array([[self.par_a(x),
                           self.par_b(x),
-                          self.par_c(x)]]).T
+                          self.par_d(x)]]).T

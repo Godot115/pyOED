@@ -11,21 +11,22 @@ import numpy as np
 
 class Model2():
 
-    def __init__(self):
+    def __init__(self, parameters):
         self.model_name = "model2"
         self.min_sup_points = 2
+        self.parameters = parameters
+        self.a = self.parameters[0]
+        self.b = self.parameters[1]
 
-    def par_a(self, x, *args):
-        a = args[0]
-        b = args[1]
+    def par_a(self, x):
         return x
 
-    def par_b(self, x, *args):
-        a = args[0]
-        b = args[1]
+    def par_b(self, x):
+        a = self.a
+        b = self.b
         return -a * b * math.log(x) * x / (b * b)
 
-    def par_deriv_vec(self, x, plus_minus_sign, *args):
+    def par_deriv_vec(self, x):
         """
         :param x: value of the design point
         :return: f(x,Theta).T
@@ -34,6 +35,6 @@ class Model2():
          ..................
          [∂η(x,Theta) / ∂θm]]
         """
-        x = math.exp(x / args[1])
-        return np.array([[self.par_a(x, *args),
-                          self.par_b(x, *args)]]).T
+        x = math.exp(x[0] / self.parameters[1])
+        return np.array([[self.par_a(x),
+                          self.par_b(x)]]).T
