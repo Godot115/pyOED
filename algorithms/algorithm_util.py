@@ -244,3 +244,8 @@ if __name__ == '__main__':
     print(end - start)
     # print(math.log(np.linalg.det(au.model_util.inv_inf_mat)))
     print("criterion_val: ", au.criterion_val)
+    model = Model2(parameters=[349.0268, 1067.0434])
+    restrictions = [[0.01, 2500]]
+    au = AlgorithmUtil(model, restrictions, grid_size)
+    au.cocktail_algorithm()
+    print("criterion_val: ", au.criterion_val)

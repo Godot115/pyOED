@@ -28,20 +28,31 @@ $$
 Constructing D-optimal design requires users input `design space`, `grid size` and  `initial parameters guesses`. `po_ne` denotes the plus or minus sign for model 3.
 
 ```python
+from models.model_util import ModelUtil
+from models.custom_model import CustomModel
 from algorithms.algorithm_util import AlgorithmUtil
 
-model = Model5()
-design_space = [0.01, 2500.0]
-grid_size = 10000
-po_ne = "neg"
-args = (349.02687, 1067.04343, 0.76332, 2.60551)
-au = AlgorithmUtil(model, [0.01, 2500.0], 1000, po_ne, *args)
-au.mac()
-print(au.design_points)
-# [[2500.0, 0.2499644988426227], [1285.287116935484, 0.24996449884262303], [710.6926411290322, 0.2499644988426224], [0.01, 0.24996449884262267], [1295.3677217741936, 0.00014200462950923057]]
-
-print(au.criterion_val)
-# 283.5403685634794
+model = CustomModel("a*e**(x/b)", ["x"], ["a", "b"], [349.0268, 1067.0434])
+restrictions = [[0.01, 2500]]
+grid_size = 100
+au = AlgorithmUtil(model, restrictions, grid_size)
+########################################
+au.cocktail_algorithm()
+print("criterion_val: ", au.criterion_val)
+# criterion_val:  42.53650523036459
+########################################
+model = Model2(parameters=[349.0268, 1067.0434])
+au = AlgorithmUtil(model, restrictions, grid_size)
+au.cocktail_algorithm()
+print("criterion_val: ", au.criterion_val)
+# criterion_val:  42.53650523036449
+########################################
+restrictions = [[0.01, 1250], [0.01, 1250]]
+model = CustomModel("a*e**((x+z)/b)", ["x", "z"], ["a", "b"], [349.0268, 1067.0434])
+au = AlgorithmUtil(model, restrictions, grid_size)
+au.cocktail_algorithm()
+print("criterion_val: ", au.criterion_val)
+# criterion_val:  42.536779108194594
 ```
 
 ## Things To Do
