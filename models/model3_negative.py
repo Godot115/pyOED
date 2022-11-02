@@ -2,7 +2,7 @@
 # @Time    : 10/6/22 03:35
 # @Author  : godot
 # @FileName: model3_positive.py
-# @Project : MAC
+# @Project : pyOED
 # @Software: PyCharm
 from math import log, exp
 

@@ -1,9 +1,8 @@
-# Multi-layer Algorithm Clustering
+# pyOED
 
 ## Overview
 
-Multi-layer Algorithm Clustering(MAC) is an algorithm for constructing optimal experimental designs. It can construct optimal design for experimental with large grid size instantly.
-
+pyOED is a python optimal experimental design package
 ## Usage
 
 Import presetting models.
@@ -35,31 +34,20 @@ from algorithms.algorithm_util import AlgorithmUtil
 model = CustomModel("a*e**(x/b)", ["x"], ["a", "b"], [349.0268, 1067.0434])
 restrictions = [[0.01, 2500]]
 grid_size = 100
-au = AlgorithmUtil(model, restrictions, grid_size)
+model_util = ModelUtil(model, "D-optimal", restrictions, grid_size)
+au = AlgorithmUtil(model_util, "rex", 1e-6)
+au.start()
+print("c_val: ", au.criterion_val)
+print("eff: ", au.eff)
+# print(au.design_points)
 ########################################
-au.cocktail_algorithm()
-print("criterion_val: ", au.criterion_val)
-# criterion_val:  42.53650523036459
-########################################
-model = Model2(parameters=[349.0268, 1067.0434])
-au = AlgorithmUtil(model, restrictions, grid_size)
-au.cocktail_algorithm()
-print("criterion_val: ", au.criterion_val)
-# criterion_val:  42.53650523036449
-########################################
-restrictions = [[0.01, 1250], [0.01, 1250]]
-model = CustomModel("a*e**((x+z)/b)", ["x", "z"], ["a", "b"], [349.0268, 1067.0434])
-au = AlgorithmUtil(model, restrictions, grid_size)
-au.cocktail_algorithm()
-print("criterion_val: ", au.criterion_val)
-# criterion_val:  42.536779108194594
 ```
 
 ## Things To Do
 
 * [x] Converting jumbled code to oop code
-* [ ] Adding the feature of user-defined models
-* [ ] Extend MAC to other optimality criteria.
+* [x] Adding the feature of user-defined models
+* [x] Extend MAC to other optimality criteria.
 
 ## License
 

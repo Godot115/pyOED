@@ -2,7 +2,7 @@
 # @Time    : 10/6/22 03:00
 # @Author  : godot
 # @FileName: dbscan_util.py
-# @Project : MAC
+# @Project : pyOED
 # @Software: PyCharm
 
 from typing import List

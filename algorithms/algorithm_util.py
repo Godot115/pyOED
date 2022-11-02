@@ -2,16 +2,18 @@
 # @Time    : 10/6/22 03:41
 # @Author  : godot
 # @FileName: algorithm_util.py
-# @Project : MAC
+# @Project : pyOED
 # @Software: PyCharm
+import heapq
 import sys
+from random import shuffle
 import time
+from collections import defaultdict
 
 import numpy as np
 
 from models.custom_model import CustomModel
 from models.model2 import Model2
-from models.model2_test import Model2Test
 from models.model3_negative import Model3Negative
 from models.model3_positive import Model3Positive
 from models.model4 import Model4
@@ -21,183 +23,97 @@ from models.model_util import ModelUtil
 
 # model, design_space, plus_minus_sign, *args
 class AlgorithmUtil():
-    def __init__(self, model, low_high_restrictions, grid_size):
-        self.model = model
-        self.low_high_restrictions = low_high_restrictions
-        self.grid_size = grid_size
-        self.candidate_set = self.generate_candidate_set(low_high_restrictions, grid_size)
-        self.model_util = ModelUtil(model)
-        self.min_sup_points = self.model_util.min_sup_points
+    def __init__(self, model_util, algorithm, eff_threshold):
+        self.model_util = model_util
+        self.candidate_set = model_util.candidate_set
+        self.min_sup_points = model_util.min_sup_points
         self.criterion_val = 0
+        self.eff = 0
+        self.algorithm = algorithm
+        self.eff_threshold = eff_threshold
+        if algorithm == "rex":
+            self.selected_algorithm = self.rex
+        elif algorithm == "cocktail":
+            self.selected_algorithm = self.cocktail_algorithm
 
-    def generate_candidate_set(self, low_high_restrictions, grid_size):
-        candidate_set = []
-        factor_grid_sets = []
-        for restriction in low_high_restrictions:
-            factor_grid_sets.append(np.linspace(restriction[0], restriction[1], grid_size))
-        for point in factor_grid_sets[0]:
-            candidate_set.append([point])
-        if len(factor_grid_sets) == 1:
-            return candidate_set
-        for idx in range(len(factor_grid_sets) - 1):
-            candidate_set = [point + [next_point] for point in candidate_set for next_point in factor_grid_sets[idx]]
-        return candidate_set
-
-    def mac(self):
-        algorithm = 'MAC'
-        min_sup_points = self.min_sup_points
-        model_util = self.model_util
-
-        design_points = [
-            [self.candidate_set[int(i * (len(self.candidate_set) - 1) / (min_sup_points - 1))], 1 / min_sup_points] for
-            i in
-            range(min_sup_points)]
-        candidate_set = self.candidate_set
-        model_util.cal_inf_mat_w(design_points)
-        threshold = 1e-6
-        max_variance = float('inf')
-        while max_variance - min_sup_points > threshold:
-            max_variance = float('-inf')
-            max_variance_point = sys.maxsize
-            for j in range(len(candidate_set)):
-                variance = model_util.cal_variance(candidate_set[j])
-                if variance > max_variance:
-                    max_variance = variance
-                    max_variance_point = candidate_set[j]
-
-            if max_variance - min_sup_points < threshold:
-                break
-            min_variance = float('inf')
-            min_variance_point = sys.maxsize
-            for point in design_points:
-                variance = model_util.cal_variance(point[0])
-                if variance < min_variance:
-                    min_variance = variance
-                    min_variance_point = point
-
-            delta = (min_variance - max_variance) / (2 * (
-                    model_util.cal_combined_variance(max_variance_point,
-                                                     min_variance_point[0]) ** 2 - max_variance * min_variance))
-            # print(delta, min_variance_point[1], )
-            alpha_s = min(delta, min_variance_point[1])
-            inserted = False
-            for idx in range(len(design_points)):
-                if design_points[idx][0] == max_variance_point:
-                    design_points[idx][1] += alpha_s
-                    inserted = True
-                    break
-            if not inserted:
-                design_points.append([max_variance_point, alpha_s])
-
-            for idx in range(len(design_points)):
-                if design_points[idx][0] == min_variance_point[0]:
-                    design_points[idx][1] -= alpha_s
-                    if design_points[idx][1] <= 0:
-                        design_points.pop(idx)
-                    break
-            #
-            design_add = model_util.cal_observ_mass(max_variance_point)
-            design_del = model_util.cal_observ_mass(min_variance_point[0])
-            model_util.fim_add_mass(design_add, alpha_s)
-            model_util.fim_add_mass(design_del, -alpha_s)
-
-            idx = 0
-            design_points = sorted(design_points, key=lambda x: x[0], reverse=False)
-            while idx < len(design_points) - 1:
-                point_1 = design_points[idx]
-                point_2 = design_points[idx + 1]
-                point_1_var = model_util.cal_variance(point_1[0])
-                point_2_var = model_util.cal_variance(point_2[0])
-                combined_var = model_util.cal_combined_variance(point_1[0], point_2[0])
-                delta = (point_1_var - point_2_var) / (2 * (combined_var ** 2 - point_2_var * point_1_var))
-                alpha_s = min(max(delta, -point_2[1]), point_1[1])
-                design_points[idx][1] -= alpha_s
-                if design_points[idx][1] <= 0:
-                    design_points.pop(idx)
-                    idx -= 1
-                design_points[idx + 1][1] += alpha_s
-                if design_points[idx + 1][1] <= 0:
-                    design_points.pop(idx + 1)
-                    idx -= 1
-                design_add = model_util.cal_observ_mass(point_2[0])
-                design_del = model_util.cal_observ_mass(point_1[0])
-                model_util.fim_add_mass(design_add, alpha_s)
-                model_util.fim_add_mass(design_del, -alpha_s)
-                idx += 1
-
-            variances = [0] * len(design_points)
-            for idx in range(len(design_points)):
-                variances[idx] = model_util.cal_variance(design_points[idx][0])
-                max_variance = max(variances[idx], max_variance)
-            if max_variance - min_sup_points < threshold:
-                break
-            for idx in range(len(design_points)):
-                design_points[idx][1] *= variances[idx] / min_sup_points
-            model_util.cal_inf_mat_w(design_points)
-
-        self.design_points = design_points
-        self.criterion_val = model_util.get_det_fim()
+    def start(self):
+        self.selected_algorithm()
 
     def cocktail_algorithm(self):
-        algorithm = 'combined_algorithm'
-        min_sup_points = self.min_sup_points
-        model_util = self.model_util
-
-        design_points = [
-            [self.candidate_set[int(i * (len(self.candidate_set) - 1) / (min_sup_points - 1))], 1 / min_sup_points] for
-            i in
-            range(min_sup_points)]
         candidate_set = self.candidate_set
         min_sup_points = self.min_sup_points
-        model_util.cal_inf_mat_w(design_points)
-        threshold = 1e-6
-        max_variance = float('inf')
-        while max_variance - min_sup_points > threshold:
-            # VDM step begin
-            max_variance = float('-inf')
-            max_variance_point = sys.maxsize
+        model_util = self.model_util
+        gradient_func = model_util.gradient_func
+        gradient_target = model_util.gradient_target
+        weights = defaultdict(lambda: 0)
+        design_points = [candidate_set[int(i * (len(candidate_set) - 1) / (min_sup_points - 1))] for i in
+                         range(min_sup_points)]
+        for point in design_points:
+            weights[point] += (1 / len(design_points))
+        model_util.cal_inf_mat_w(design_points, weights)
+        threshold = self.eff_threshold
+        # m_dfv = max_direction_function_val
+        max_gradient = float('inf')
+        iter = min_sup_points
+        while 1 - (gradient_target() / max_gradient) > threshold:
+            iter += 1
+            # VEM step begin
+            max_gradient = float('-inf')
+            min_gradient = float('inf')
+            max_g_point = sys.maxsize
+            min_g_point = sys.maxsize
             for j in range(len(candidate_set)):
-                variance = model_util.cal_variance(candidate_set[j])
-                if variance > max_variance:
-                    max_variance = variance
-                    max_variance_point = candidate_set[j]
-            if max_variance - min_sup_points < threshold:
+                gradient = gradient_func(candidate_set[j])
+                if gradient > max_gradient:
+                    max_gradient = gradient
+                    max_g_point = candidate_set[j]
+            for j in range(len(design_points)):
+                gradient = gradient_func(design_points[j])
+                if gradient < min_gradient:
+                    min_gradient = gradient
+                    min_g_point = design_points[j]
+            if 1 - (gradient_target() / max_gradient) < threshold:
                 break
-            alpha_s = (max_variance / min_sup_points - 1) / (max_variance - 1)
-            design_points = [[point[0], point[1] * (1 - alpha_s)] for point in design_points]
-            inserted = False
-            for idx in range(len(design_points)):
-                if design_points[idx][0] == max_variance_point:
-                    design_points[idx][1] += alpha_s
-                    inserted = True
-                    break
-            if not inserted:
-                design_points.append([max_variance_point, alpha_s])
-            design_add = model_util.cal_observ_mass(max_variance_point)
+            w_add = weights[max_g_point]
+            w_del = weights[min_g_point]
+            alpha_s = model_util.cal_ve_alpha_s(max_g_point, min_g_point, w_add, w_del)
+            weights[max_g_point] += alpha_s
+            weights[min_g_point] -= alpha_s
+            if weights[min_g_point] <= 0:
+                if max_g_point in design_points:
+                    design_points.pop(design_points.index(max_g_point))
+                weights.pop(min_g_point)
+            if max_g_point not in design_points:
+                design_points.append(max_g_point)
+            design_add = model_util.cal_observ_mass(max_g_point)
             model_util.fim_add_mass(design_add, alpha_s)
-            # VDM step end
-
+            design_del = model_util.cal_observ_mass(min_g_point)
+            model_util.fim_add_mass(design_del, -alpha_s)
+            # VEM step end
             # NNE step begin
             idx = 0
-            design_points = sorted(design_points, key=lambda x: x[0], reverse=False)
+            design_points = sorted(design_points, key=lambda x: x, reverse=False)
             while idx < len(design_points) - 1:
                 point_1 = design_points[idx]
                 point_2 = design_points[idx + 1]
-                point_1_var = model_util.cal_variance(point_1[0])
-                point_2_var = model_util.cal_variance(point_2[0])
-                combined_var = model_util.cal_combined_variance(point_1[0], point_2[0])
-                delta = (point_1_var - point_2_var) / (2 * (combined_var ** 2 - point_2_var * point_1_var))
-                alpha_s = min(max(delta, -point_2[1]), point_1[1])
-                design_points[idx][1] -= alpha_s
-                if design_points[idx][1] <= 0:
-                    design_points.pop(idx)
+                weight_1 = weights[point_1]
+                weight_2 = weights[point_2]
+                alpha_s = model_util.cal_ve_alpha_s(point_2, point_1, weight_1, weight_2)
+                alpha_s = min(max(alpha_s, -weight_2), weight_1)
+                weights[point_1] -= alpha_s
+                if weights[point_1] <= 0:
+                    if point_1 in design_points:
+                        design_points.pop(idx)
+                    weights.pop(point_1)
                     idx -= 1
-                design_points[idx + 1][1] += alpha_s
-                if design_points[idx + 1][1] <= 0:
-                    design_points.pop(idx + 1)
+                weights[point_2] += alpha_s
+                if weights[point_2] <= 0:
+                    if point_2 in design_points:
+                        design_points.pop(idx + 1)
+                    weights.pop(point_2)
                     idx -= 1
-                design_add = model_util.cal_observ_mass(point_2[0])
-                design_del = model_util.cal_observ_mass(point_1[0])
+                design_add = model_util.cal_observ_mass(point_2)
+                design_del = model_util.cal_observ_mass(point_1)
                 model_util.fim_add_mass(design_add, alpha_s)
                 model_util.fim_add_mass(design_del, -alpha_s)
                 idx += 1
@@ -205,47 +121,128 @@ class AlgorithmUtil():
 
             # MA step begin
             denominator = 0
-            variances = [0] * len(design_points)
+            gradients = [0] * len(design_points)
             for idx in range(len(design_points)):
-                variances[idx] = model_util.cal_variance(design_points[idx][0])
-                denominator += design_points[idx][1] * variances[idx]
-                max_variance = max(variances[idx], max_variance)
-            if max_variance - min_sup_points < threshold:
+                gradients[idx] = gradient_func(design_points[idx])
+                max_gradient = max(gradients[idx], max_gradient)
+                denominator += weights[design_points[idx]] * gradients[idx]
+            if 1 - (gradient_target() / max_gradient) < threshold:
                 break
             for idx in range(len(design_points)):
-                design_points[idx][1] *= variances[idx] / denominator
-            model_util.cal_inf_mat_w(design_points)
+                weights[design_points[idx]] *= gradients[idx] / denominator
+            model_util.cal_inf_mat_w(design_points, weights)
             # MA step end
+        self.design_points = [(point, weights[point]) for point in design_points]
+        self.criterion_val = model_util.get_criterion_val()
+        self.eff = gradient_target() / max_gradient
 
-        self.design_points = design_points
-        self.criterion_val = model_util.get_det_fim()
+    def rex(self):
+        candidate_set = self.candidate_set
+        min_sup_points = self.min_sup_points
+        model_util = self.model_util
+        gradient_func = model_util.gradient_func
+        gradient_target = model_util.gradient_target
+        weights = defaultdict(lambda: 0)
+        design_points = [candidate_set[int(i * (len(candidate_set) - 1) / (min_sup_points - 1))] for i in
+                         range(min_sup_points)]
+        for point in design_points:
+            weights[point] += (1 / len(design_points))
+        model_util.cal_inf_mat_w(design_points, weights)
+        threshold = self.eff_threshold
+        del_threshold = 1e-14
+        gamma = 5 / min_sup_points
 
+        max_gradient = float('-inf')
+        min_gradient = float('inf')
+        max_g_point = sys.maxsize
+        min_g_point = sys.maxsize
+        gradients = defaultdict(lambda: float('inf'))
+        heap = []
+        for point in candidate_set:
+            gradient = gradient_func(point)
+            if len(heap) < gamma * min_sup_points:
+                heapq.heappush(heap, (gradient, point))
+            else:
+                if gradient > gradients[heap[0][1]]:
+                    heapq.heappop(heap)
+                    heapq.heappush(heap, (gradient, point))
+            if gradient > max_gradient:
+                max_gradient = gradient
+                max_g_point = point
+            if gradient < min_gradient and point in design_points:
+                min_gradient = gradient
+                min_g_point = point
+            gradients[point] = gradient
 
-if __name__ == '__main__':
-    parameters = (349.0268, 1067.0434, 0.7633, 2.6055)
-    model = CustomModel("a*e**(x/b)", ["x"], ["a", "b"], [349.0268, 1067.0434])
-    restrictions = [[0.01, 2500]]
-    grid_size = 100
-    au = AlgorithmUtil(model, restrictions, grid_size)
-    ########################################
-    start = time.time()
-    au.cocktail_algorithm()
-    end = time.time()
-    print(end - start)
-    # print(math.log(np.linalg.det(au.model_util.inv_inf_mat)))
-    print("criterion_val: ", au.criterion_val)
-    restrictions = [[0.01, 1250], [0.01, 1250]]
-    grid_size = 100
-    model = CustomModel("a*e**((x+z)/b)", ["x", "z"], ["a", "b"], [349.0268, 1067.0434])
-    au = AlgorithmUtil(model, restrictions, grid_size)
-    start = time.time()
-    au.cocktail_algorithm()
-    end = time.time()
-    print(end - start)
-    # print(math.log(np.linalg.det(au.model_util.inv_inf_mat)))
-    print("criterion_val: ", au.criterion_val)
-    model = Model2(parameters=[349.0268, 1067.0434])
-    restrictions = [[0.01, 2500]]
-    au = AlgorithmUtil(model, restrictions, grid_size)
-    au.cocktail_algorithm()
-    print("criterion_val: ", au.criterion_val)
+        while 1 - (gradient_target() / max_gradient) > threshold:
+            w_add = weights[max_g_point]
+            w_del = weights[min_g_point]
+            alpha_s = model_util.cal_ve_alpha_s(max_g_point, min_g_point, w_add, w_del)
+            weights[max_g_point] += alpha_s
+            weights[min_g_point] -= alpha_s
+            if weights[min_g_point] <= del_threshold:
+                if max_g_point in design_points:
+                    design_points.pop(design_points.index(max_g_point))
+                weights.pop(min_g_point)
+            if max_g_point not in design_points:
+                design_points.append(max_g_point)
+            design_add = model_util.cal_observ_mass(max_g_point)
+            model_util.fim_add_mass(design_add, alpha_s)
+            design_del = model_util.cal_observ_mass(min_g_point)
+            model_util.fim_add_mass(design_del, -alpha_s)
+            L = [point[1] for point in heap]
+            shuffle(L)
+            shuffle(design_points)
+
+            if weights[min_g_point] < del_threshold:
+                for l in L:
+                    for k in design_points:
+                        if k == l:
+                            continue
+                        alpha = model_util.cal_ve_alpha_s(l, k, weights[l], weights[k])
+                        if weights[k] - alpha < del_threshold or weights[l] + alpha < del_threshold:
+                            weights[k] -= alpha
+                            weights[l] += alpha
+                            model_util.fim_add_mass(model_util.cal_observ_mass(l), alpha)
+                            model_util.fim_add_mass(model_util.cal_observ_mass(k), -alpha)
+            else:
+                for l in L:
+                    for k in design_points:
+                        if k == l:
+                            continue
+                        alpha = model_util.cal_ve_alpha_s(l, k, weights[l], weights[k])
+                        weights[k] -= alpha
+                        weights[l] += alpha
+                        model_util.fim_add_mass(model_util.cal_observ_mass(l), alpha)
+                        model_util.fim_add_mass(model_util.cal_observ_mass(k), -alpha)
+
+            design_points.clear()
+            for point in weights.keys():
+                if weights[point] > del_threshold:
+                    design_points.append(point)
+            model_util.cal_inf_mat_w(design_points, weights)
+
+            max_gradient = float('-inf')
+            min_gradient = float('inf')
+            max_g_point = sys.maxsize
+            min_g_point = sys.maxsize
+            gradients = defaultdict(lambda: float('inf'))
+            heap = []
+            for point in candidate_set:
+                gradient = gradient_func(point)
+                if len(heap) < gamma * min_sup_points:
+                    heapq.heappush(heap, (gradient, point))
+                else:
+                    if gradient > gradients[heap[0][1]]:
+                        heapq.heappop(heap)
+                        heapq.heappush(heap, (gradient, point))
+                if gradient > max_gradient:
+                    max_gradient = gradient
+                    max_g_point = point
+                if gradient < min_gradient and point in design_points:
+                    min_gradient = gradient
+                    min_g_point = point
+                gradients[point] = gradient
+        self.design_points = [(point, weights[point]) for point in design_points]
+        self.criterion_val = model_util.get_criterion_val()
+        self.eff = gradient_target() / max_gradient

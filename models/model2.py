@@ -2,7 +2,7 @@
 # @Time    : 10/6/22 03:14
 # @Author  : godot
 # @FileName: model2.py
-# @Project : MAC
+# @Project : pyOED
 # @Software: PyCharm
 import math
 
